@@ -10,7 +10,7 @@ morgan.token('postData', (req, res) => {
     return '-'
 })
 
-app.use(express.static('dist'))
+app.use(express.static('build'))
 app.use(cors())
 app.use(express.json())
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
