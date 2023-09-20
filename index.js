@@ -4,6 +4,15 @@ const app = express()
 const morgan = require('morgan')
 const cors = require('cors')
 const Entry = require('./models/entry')
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+  
+    if (error.name === 'CastError') {
+      return response.status(400).send({ error: 'malformatted id' })
+    }
+  
+    next(error)
+}
 
 morgan.token('postData', (req, res) => {
     if (req.method === 'POST') {
@@ -12,10 +21,11 @@ morgan.token('postData', (req, res) => {
     return '-'
 })
 
-app.use(express.static('dist'))
+app.use(express.static('build'))
 app.use(cors())
 app.use(express.json())
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
+app.use(errorHandler)
 
 let entries = [
     {
@@ -44,18 +54,14 @@ app.get('/', (req, res) => {
     res.send('<h1>Hello World!</h1>')
 })
 
-app.get('/api/entries', (req, res) => {
+app.get('/api/entries', (req, res, next) => {
     Entry.find({}).then(entries => {
         res.json(entries)
     })
+    .catch(error => next(error))
 })
-
-const generateId = () => {
-    const maxId = Math.floor(Math.random() * (9999999 - 10 + 1)) + 10
-    return maxId
-}
   
-app.post('/api/entries', (request, response) => {
+app.post('/api/entries', (request, response, next) => {
     const body = request.body
 
     if (!body.name || !body.number) {
@@ -78,9 +84,10 @@ app.post('/api/entries', (request, response) => {
     entry.save().then(savedEntry => {
         response.json(savedEntry)
     })
+    .catch(error => next(error))
 })
 
-app.get('/api/info', (req, res) => {
+app.get('/api/info', (req, res, next) => {
     const entries = entries.length
     const dateReceived = new Date()
 
@@ -90,19 +97,27 @@ app.get('/api/info', (req, res) => {
     `
 
     res.send(infoText)
+    .catch(error => next(error))
 })
 
-app.get('/api/entries/:id', (request, response) => {
-    Entry.findById(request.params.id).then(entry => {
-        response.json(entry)
-    })
+app.get('/api/entries/:id', (request, response, next) => {
+    Entry.findById(request.params.id)
+        .then(entry => {
+            if (entry) {
+                response.json(entry)
+            } else {
+                response.status(404).end()
+            }
+        })
+        .catch(error => next(error))
 })
 
-app.delete('/api/entries/:id', (request, response) => {
-    const id = Number(request.params.id)
-    entries = entries.filter(entry => entry.id !== id)
-  
-    response.status(204).end()
+app.delete('/api/entries/:id', (request, response, next) => {
+    Entry.findByIdAndRemove(request.params.id)
+        .then(result => {
+            response.status(204).end()
+        })
+        .catch(error => next(error))
 })
 
 const PORT = process.env.PORT
