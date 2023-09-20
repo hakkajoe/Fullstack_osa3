@@ -1,7 +1,9 @@
+require('dotenv').config()
 const express = require('express')
 const app = express()
 const morgan = require('morgan')
 const cors = require('cors')
+const Entry = require('./models/entry')
 
 morgan.token('postData', (req, res) => {
     if (req.method === 'POST') {
@@ -15,7 +17,7 @@ app.use(cors())
 app.use(express.json())
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
 
-let persons = [
+let entries = [
     {
       id: 1,
       name: "Arto Hellas",
@@ -42,8 +44,10 @@ app.get('/', (req, res) => {
     res.send('<h1>Hello World!</h1>')
 })
 
-app.get('/api/persons', (req, res) => {
-    res.json(persons)
+app.get('/api/entries', (req, res) => {
+    Entry.find({}).then(entries => {
+        res.json(entries)
+    })
 })
 
 const generateId = () => {
@@ -51,7 +55,7 @@ const generateId = () => {
     return maxId
 }
   
-app.post('/api/persons', (request, response) => {
+app.post('/api/entries', (request, response) => {
     const body = request.body
 
     if (!body.name || !body.number) {
@@ -60,25 +64,25 @@ app.post('/api/persons', (request, response) => {
         })
     }
 
-    if (persons.some(person => person.name === body.name)) {
+    if (entries.some(entry => entry.name === body.name)) {
         return response.status(400).json({ 
             error: 'name must be unique' 
         })
     }
 
-    const person = {
+    const entry = new Entry({
         id: generateId(),
         name: body.name,
         number: body.number
-    }
+    })
 
-    persons = persons.concat(person)
-
-    response.json(person)
+    entry.save().then(savedEntry => {
+        response.json(savedEntry)
+    })
 })
 
 app.get('/api/info', (req, res) => {
-    const entries = persons.length
+    const entries = entries.length
     const dateReceived = new Date()
 
     const infoText = `
@@ -89,24 +93,25 @@ app.get('/api/info', (req, res) => {
     res.send(infoText)
 })
 
-app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
+app.get('/api/entries/:id', (request, response) => {
+    Entry.findById(request.params.id).then(entry => {
   
-    if (person) {
-      response.json(person)
+    if (entry) {
+      response.json(entry)
     } else {
       response.status(404).end()
     }
+    })
 })
 
-app.delete('/api/persons/:id', (request, response) => {
+app.delete('/api/entries/:id', (request, response) => {
     const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
+    entries = entries.filter(entry => entry.id !== id)
   
     response.status(204).end()
 })
 
-const PORT = process.env.PORT || 3001
-app.listen(PORT)
-console.log(`Server running on port ${PORT}`)
+const PORT = process.env.PORT
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+})
