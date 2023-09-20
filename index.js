@@ -95,12 +95,7 @@ app.get('/api/info', (req, res) => {
 
 app.get('/api/entries/:id', (request, response) => {
     Entry.findById(request.params.id).then(entry => {
-  
-    if (entry) {
-      response.json(entry)
-    } else {
-      response.status(404).end()
-    }
+        response.json(entry)
     })
 })
 
