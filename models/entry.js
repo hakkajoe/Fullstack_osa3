@@ -9,9 +9,7 @@ const url = process.env.MONGODB_URI
 console.log('connecting to', url)
 mongoose.connect(url)
 
-  .then(result => {
-    console.log('connected to MongoDB')
-  })
+  .then(console.log('connected to MongoDB'))
   .catch((error) => {
     console.log('error connecting to MongoDB:', error.message)
   })
@@ -27,24 +25,24 @@ const entrySchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: (value) => {
-        const parts = value.split("-")
+        const parts = value.split('-')
         if (parts.length !== 2) {
           return false
         }
-        
+
         const [firstPart, secondPart] = parts
         const isFirstPartNumeric = /^\d+$/.test(firstPart)
         const isSecondPartNumeric = /^\d+$/.test(secondPart)
-        
+
         return (
           isFirstPartNumeric &&
           isSecondPartNumeric &&
           firstPart.length >= 2 &&
           firstPart.length <= 3 &&
-          value.replace("-", "").length >= 8
-        );
+          value.replace('-', '').length >= 8
+        )
       },
-      message: "Number must have two parts separated by '-', the first part being 2 or 3 numbers, and contain at least 8 numbers in total.",
+      message: 'Number must have two parts separated by \'-\', the first part being 2 or 3 numbers, and contain at least 8 numbers in total.',
     },
   },
 })
