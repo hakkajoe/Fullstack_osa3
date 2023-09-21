@@ -9,6 +9,9 @@ const errorHandler = (error, request, response, next) => {
   
     if (error.name === 'CastError') {
       return response.status(400).send({ error: 'malformatted id' })
+    
+    } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
     }
   
     next(error)
@@ -21,7 +24,7 @@ morgan.token('postData', (req, res) => {
     return '-'
 })
 
-app.use(express.static('build'))
+app.use(express.static('dist'))
 app.use(cors())
 app.use(express.json())
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :postData'))
@@ -64,40 +67,59 @@ app.get('/api/entries', (req, res, next) => {
 app.post('/api/entries', (request, response, next) => {
     const body = request.body
 
-    if (!body.name || !body.number) {
-        return response.status(400).json({ 
-            error: 'name or number missing' 
-        })
-    }
-
-    if (entries.some(entry => entry.name === body.name)) {
-        return response.status(400).json({ 
-            error: 'name must be unique' 
-        })
-    }
-
     const entry = new Entry({
         name: body.name,
         number: body.number
     })
 
-    entry.save().then(savedEntry => {
+    entry.save()
+    .then(savedEntry => {
         response.json(savedEntry)
     })
-    .catch(error => next(error))
+    .catch(error => {
+        if (error.name === 'ValidationError') {
+            response.status(400).json({ error: error.message })
+        } else {
+            next(error)
+        }
+    })
 })
 
-app.get('/api/info', (req, res, next) => {
-    const entries = entries.length
+app.patch('/api/entries/:id', (request, response, next) => {
+    const body = request.body
+
+    if (!body.number) {
+        return response.status(400).json({ 
+            error: 'number missing' 
+        })
+    }
+
+    const entry = {
+        name: body.name,
+        number: body.number
+    }
+
+    Entry.findByIdAndUpdate(request.params.id, entry, { new: true, runValidators: true, context: 'query' })
+        .then(updatedEntry => {
+            if (updatedEntry) {
+                response.json(updatedEntry)
+            } else {
+                response.status(404).end()
+            }
+        })
+        .catch(error => next(error))
+})
+
+app.get('/api/info', (req, res) => {
+    const numberOfEntries = entries.length
     const dateReceived = new Date()
 
     const infoText = `
-    <p>Phonebook has info for ${entries} people</p>
+    <p>Phonebook has info for ${numberOfEntries} people</p>
     <p>${dateReceived}</p>
     `
 
     res.send(infoText)
-    .catch(error => next(error))
 })
 
 app.get('/api/entries/:id', (request, response, next) => {
